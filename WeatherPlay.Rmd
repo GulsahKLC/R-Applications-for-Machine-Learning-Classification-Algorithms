@@ -1,0 +1,562 @@
+---
+title: "WeatherPlay"
+author: "gulsah kilic"
+date: "2024-10-06"
+output:
+  word_document: default
+  html_document: default
+---
+
+# Veri Setini Anlama
+
+- WeatherPlay veri seti partykit paketi ile birlikte gelmektedir.
+- Bu veri seti hava durumu, sicaklık, nem ve rüzgar niteliklerini dikkate alarak 
+golf karşılaşmasının oynanıp oynanmayacağına ilişkin kararları içermektedir.
+
+Önemli Paketler: 
+install.packages(”partykit”) diyerek R da paketleri yükleriz. 
+
+install.packages("party")
+
+install.packages("partykit")
+
+Zorunlu paket yükleniyor: grid
+Zorunlu paket yükleniyor: libcoin
+Zorunlu paket yükleniyor: mvtnorm
+bu bilgiler uyarı hata mesajı gibi zaten yazmaktadır. R bu konuda bizi 
+yönlendirir. 
+
+WeatherPlay Datasını inceleyelim.
+
+```{r, warning=FALSE, error=FALSE}
+library(party) 
+library(partykit)
+data("WeatherPlay", package = "partykit")
+WeatherPlay
+str(WeatherPlay)   # str veri yapısının yapısını özet bir şekilde göstermeye yarayan fonksiyondur.
+```
+
+- Factor: Kategorik değişkenleri temsil eder. Bu tür değişkenler belirli 
+sınıflara ayrılmıştır. 
+      (örneğin, hava durumu gibi nitelikler. Başka bir örnek
+      Günler: Hatfaiçi, haftasonu 
+      Cinsiyet: "male", "female", "non-binary" 
+      Araba tipleri: sedan", "SUV", "truck", "coupe"gibi).
+      
+- Numeric: Sayısal veriyi temsil eder, sürekli değerler alabilen değişkenlerdir 
+(örneğin, sıcaklık veya nem).
+
+
+# Yeniden Kodlama
+Çıktıdan görüldüğü gibi 
+hava (outlook), rüzgar (windy) ve maçın oynanma durumu (play): (factor) iken 
+sıcaklık (temperature) ve nem (humidity) sayısal niteliklerdir.
+
+sıcaklık (temperature)
+[80, →) Yüksek(Y)
+[70, 80) Normal(N)
+[←, 70) Düşükk(D)
+
+Nem(%) Kategori
+(80,→) Yüksek(NemY)
+(←, 80] Normal(NemN)
+
+
+
+```{r}
+hava0yun <- WeatherPlay
+hava0yun 
+hava0yun$temperature[hava0yun$temperature >= 80] <- "Y"  # 80°F ve üzeri
+hava0yun$temperature[hava0yun$temperature < 80 & hava0yun$temperature >= 70] <- "N"  # 70-80°F arası
+hava0yun$temperature[hava0yun$temperature < 70] <- "D"  # 70°F'ten düşük
+
+```
+
+```{r}
+# Nem değerlerini kategorilere ayırma
+hava0yun$humidity[hava0yun$humidity > 80] <- "NemY"  # 80%'den yüksek nem
+hava0yun$humidity[hava0yun$humidity <= 80] <- "NemN"  # 80% veya daha az nem
+```
+
+hava0yun veri setinde, artık temperature ve humidity değişkenleri kategorik
+hale getirilmiştir.
+Sıcaklıklar Yüksek (Y), Normal (N), Düşük (D) olarak,
+nem ise Yüksek (Y) ve Normal (N) olarak sınıflandırılmıştır.
+Bu dönüşüm, veriyi kategorik hale getirerek bazı sınıflandırma 
+algoritmalarında kullanmaya uygun hale getirildi.
+
+```{r}
+hava0yun
+str(hava0yun)
+```
+# Eksik Değer Kontrolü
+```{r}
+anyNA(hava0yun)
+```
+
+*- Eksik verileri silme: 
+
+hava0yun <- na.omit(hava0yun)
+
+*- Eksik verileri doldurma: Ortalama, medyan ya da mod kullanarak 
+eksik verileri doldurabilirsiniz:
+
+hava0yun$temperature[is.na(hava0yun$temperature)] <- "N" 
+
+En sık görülen kategoriyle dolduruyoruz
+
+
+# Veri Bölme İşlemleri (Veriyi Eğitim ve Test Setlerine Ayırma)
+Araştırmacılar elde edilen sonuçların doğruluğunu test etmek için verinin bir 
+kısmını test amaçlı olarak ayırırlar. Bu işlemler veri madenciliği
+paketlerinde uygulanacak yöntemlerle birlikte, isteğe bağlı olarak, otomatik
+şekilde yapılmaktadır.
+
+
+Veriyi bölmek için caret kütüphanesini ve paketini yüklemek gerekir.
+
+```{r, warning=FALSE}
+#install.packages("ggplot2")
+library(ggplot2)
+#install.packages("lattice")
+library(lattice)
+library(caret)
+```
+
+Golf verisinde gözlemlerin %30’unu test için ayıralım.
+```{r}
+set.seed(1234)
+egitimGozlemNo <- createDataPartition(hava0yun$play, p=0.7,
+list=FALSE, times=1)
+egitimGozlemNo
+```
+set.seed(1234) komutuyla bir seed değeri belirlenir. 
+Böylece, bu seed değeriyle çalışan rastgele işlemler (örneğin örnekleme veya
+modelleme) her tekrarlandığında aynı sonuçları üretir. Bu, özellikle deneylerin 
+tekrar edilebilir olması gereken akademik çalışmalar, makine öğrenmesi 
+modellemeleri veya test işlemleri için önemlidir.
+
+Yani, set.seed(1234) komutunun kullanımı şu iki sebepten dolayı önemlidir:
+
+Sonuçların tekrar edilebilirliği: Başkaları veya siz kodunuzu tekrar 
+çalıştırdığınızda aynı sonuçları elde edersiniz.
+Karşılaştırma kolaylığı: Farklı yöntemler veya algoritmalar üzerinde 
+çalışırken sonuçları karşılaştırırken tutarlılık sağlanır.
+
+
+```{r}
+# Eğitim ve test setleri oluşturma
+egitimSeti <- hava0yun[egitimGozlemNo, ]
+testSeti <- hava0yun[-egitimGozlemNo, ]
+
+# Eğitim gözlemlerinin numaralarını yazdır
+egitimSeti
+
+# Test gözlemlerinin numaralarını yazdır
+print(testSeti)
+```
+# ID3 Algoritmasının adımları:
+- Adım 1 Genel entropi değerini hesapla, H(Y ).
+- Adım 2 Herbir  özellik için kazanım değerini hesapla, Gain (Xi)
+- Adım 3 En büyük kazanım değerine sahip  ̈özelliğin düuzeylerine (kategorilerine) göre
+dallandırmayı gerçekleştir.
+- Adım 4 Tüm düğümler saf ise dur aksi halde saf olamayan düğümlerin her biri için
+veriyi indirgeyerek 1’ci adıma dön.
+
+```{r}
+# Play faktöründeki "yes" ve "no" sayısını hesapla
+play_count <- table(hava0yun$play)
+
+# Sonucu yazdır
+print(play_count)
+```
+# (Golf) için genel entropi değerini hesaplayalım.
+
+Bu  örnekte sınıf iki değer aldıgı için kazanım değerlerini Shanon entropisi üzerinden hesaplayabiliriz.
+```{r}
+yes<-9
+no<-5
+
+toplam <- yes + no        # toplam maç sayısı
+toplam
+
+
+# Oynanma ve oynanmama olasılıkları
+p1 <- yes / toplam  # Oynanma olasılığı
+p2 <- no / toplam  # Oynanmama olasılığı
+# Entropi hesaplama
+H_golf <- - (p1 * log2(p1) + p2 * log2(p2))
+H_golf  # genel entropi değeridir.
+```
+şimdi sırasıyla hava, sıcaklık, nem ve ruzgar  özelliklerinin düzeylerini için entropi değerlerini  H (Y/Xij ) ve kazanım değerlerini hesaplayalım:
+
+# Hava (outlook) özelligi (X1) için entropi:
+Hava için 3 özellik vardı. sunny overcast rainy
+- Bu değerlerin outlook sütunu içinde kaç kez geçtiğine bakalım ve toplamına bakalım.
+- Ardından tek tek bu koşulları inceleyelim. Hava durumunun güneşli yağmurlu bulutlu olması halinde golf oynanma koşullu olasılık değerlerini bulalım.
+- nihayetinde hava özelliği için Gain Değerini hesaplayalım. 
+
+```{r}
+sunny_count <- sum(hava0yun$outlook == "sunny")
+sunny_count
+overcast_count <- sum(hava0yun$outlook == "overcast")
+overcast_count
+rainy_count <- sum(hava0yun$outlook == "rainy")
+rainy_count
+total_category <- sunny_count + overcast_count +  rainy_count
+
+
+P_X11 <- sunny_count / total_category
+P_X12 <- overcast_count/total_category
+P_X13 <- rainy_count/ total_category
+P_X11
+P_X12
+P_X13
+```
+## Güneşli Hava (X11) için Entropi Hesaplama:
+```{r, warning=FALSE}
+library(dplyr)
+# Güneşli hava durumu için
+sunny_data <- hava0yun %>% filter(outlook == "sunny")
+sunny_yes_count <- sum(sunny_data$play == "yes")
+sunny_yes_count  # hava güneşli iken golf oynanma durumu kaç kez gerçekleşmiş ise;
+sunny_no_count <- sum(sunny_data$play == "no")
+sunny_no_count # hava güneşli iken golf oynanmama durumu kaç kez gerçekleşmiş ise;
+sunny_total <- nrow(sunny_data)
+
+# Olasılıklar
+p_sunny_yes <- sunny_yes_count / sunny_total
+p_sunny_yes  # olasılık değeri
+p_sunny_no <- sunny_no_count / sunny_total
+p_sunny_no   # olasılık değeri
+
+# H(Y | X11) Entropi Hesaplama
+H_Y_given_X11 <- - (p_sunny_yes * log2(p_sunny_yes) + p_sunny_no * log2(p_sunny_no))
+
+# Sonucu yazdır
+H_Y_given_X11
+# 0.9709506 Koşullu entropi değerini verir
+```
+##  Bulutlu Hava (X12) için Entropi Hesaplama:
+```{r}
+# Bulutlu hava durumu için
+overcast_data <- hava0yun %>% filter(outlook == "overcast")
+overcast_data
+overcast_yes_count <- sum(overcast_data$play == "yes")
+overcast_yes_count
+overcast_no_count <- sum(overcast_data$play == "no")
+overcast_no_count
+overcast_total <- nrow(overcast_data)
+
+# Olasılıklar
+p_overcast_yes <- overcast_yes_count / overcast_total
+p_overcast_yes  # olasılığı 1 
+p_overcast_no <- overcast_no_count / overcast_total
+p_overcast_no  # olasılığı 0 
+# H(Y | X12) Entropi Hesaplama
+H_Y_given_X12 <- - (p_overcast_yes * log2(p_overcast_yes) + p_overcast_no * log2(p_overcast_no))
+
+# Sonucu yazdır
+H_Y_given_X12  
+#havanın bulutlu olma durumunda golf oynama durumları 4 yani bulutluysa golf oyanıyor.havanın bulutlu olduğu durumda elde edilen düğüm saf düğümdür. Yani hava bulutluyken golf maçı kesin oynanmaktadır 
+#(Evet= 4, Hayır=0). Dolayısıyla bu düğüm yaprak olarak ele alınır ve bu düğümden dallandırma yapılamaz.
+```
+##  Yağmurlu Hava (X13) için Entropi Hesaplama:
+```{r}
+library(dplyr)
+# Yağmurlu hava durumu için
+rainy_data <- hava0yun %>% filter(outlook == "rainy")
+rainy_data
+rainy_yes_count <- sum(rainy_data$play == "yes")
+rainy_yes_count
+rainy_no_count <- sum(rainy_data$play == "no")
+rainy_no_count
+rainy_total <- nrow(rainy_data)
+rainy_total
+
+# Olasılıklar
+p_rainy_yes <- rainy_yes_count / rainy_total
+p_rainy_no <- rainy_no_count / rainy_total
+
+# H(Y | X13) Entropi Hesaplama
+H_Y_given_X13 <- - (p_rainy_yes * log2(p_rainy_yes) + p_rainy_no * log2(p_rainy_no))
+
+# Sonucu yazdır
+H_Y_given_X13
+# havanın Yağmurlu olma durumunda golf oynama olaslıklılaro 0.9709 yani yağmurluysa % 97 olasılıkla golf oynuyorlar.
+```
+# Hava Özelliği için Kazanım Değeri (GAİN) 
+```{r}
+# 4. Kazanım Hesaplama
+Gain_X1 <- H_golf - ((P_X11 * H_Y_given_X11) + 
+                    #(P_X12 * H_Y_given_X12) + bu değer 0 çıktığı için kapattım. Yoksa NaN gibi bir değer geliyor bu da istediğimiz bir durum değil.
+                    (P_X13 * H_Y_given_X13))
+
+# Sonucu yazdır
+Gain_X1
+# 0.2467498 bu değeri hava, sıcaklık, nem ve rüzgar için hesapladıktan sonra birbiri ile karşılaştıracağız. 
+```
+
+# Sıcaklık  özelliği (X2) çin entropi:
+
+```{r}
+library(dplyr)
+yüksek_count <- sum(WeatherPlay$outlook == "sunny")
+yüksek_count
+
+düşük_count <- sum(WeatherPlay$outlook == "overcast")
+düşük_count
+
+normal_count <- sum(WeatherPlay$outlook == "rainy")
+normal_count
+
+total_category <- yüksek_count + düşük_count + normal_count
+
+
+P_X21 <- yüksek_count / total_category
+P_X22 <- düşük_count/total_category
+P_X23 <- rainy_count/ total_category
+P_X21 
+P_X22 
+P_X23 
+```
+## Sıcaklık "YÜKSEK =Y" için
+```{r}
+# Yüksek sıcaklık (X21) için
+high_temp_count <- hava0yun %>% filter(temperature == "Y")
+high_temp_count
+
+yes_count <- sum(hava0yun$temperature == "Y")
+yes_count 
+no_count <- sum(hava0yun$temperature == "N")
+no_count
+
+total_category <- yes_count  + no_count 
+total_category 
+
+# Olasılıklar
+p_high_yes <- yes_count / total_category
+p_high_no <- no_count / total_category
+
+# H(Y | X21) Entropi Hesaplama
+H_Y_given_X21 <- - (p_high_yes * log2(p_high_yes) + p_high_no * log2(p_high_no))
+H_Y_given_X21
+```
+
+## Sıcaklık "Normal" için
+```{r}
+# Normal sıcaklık (X22) için entropi
+normal_temp_data <- hava0yun %>% filter(temperature == "N")
+normal_temp_yes <- sum(normal_temp_data$play == "yes")
+normal_temp_no <- sum(normal_temp_data$play == "no")
+total_normal_temp <- nrow(normal_temp_data)
+
+# Olasılıklar
+p_normal_yes <- normal_temp_yes / total_normal_temp
+p_normal_no <- normal_temp_no / total_normal_temp
+
+# H(Y | X22) Entropi Hesaplama
+H_Y_given_X22 <- - (p_normal_yes * log2(p_normal_yes) + p_normal_no * log2(p_normal_no))
+H_Y_given_X22  # Normal sıcaklık için entropi sonucu
+```
+## Sıcaklık "D: DÜŞÜK" için
+```{r}
+# Düşük sıcaklık (X23) için entropi
+low_temp_data <- hava0yun %>% filter(temperature == "D")
+low_temp_yes <- sum(low_temp_data$play == "yes")
+low_temp_no <- sum(low_temp_data$play == "no")
+total_low_temp <- nrow(low_temp_data)
+
+# Olasılıklar
+p_low_yes <- low_temp_yes / total_low_temp
+p_low_no <- low_temp_no / total_low_temp
+
+# H(Y | X23) Entropi Hesaplama
+H_Y_given_X23 <- - (p_low_yes * log2(p_low_yes) + p_low_no * log2(p_low_no))
+H_Y_given_X23  # Düşük sıcaklık için entropi sonucu
+
+```
+## Sıcaklık için Kazanım Değeri Hesaplama
+```{r}
+P_X11 <- sunny_count / total_category
+P_X12 <- overcast_count/total_category
+P_X13 <- rainy_count/ total_category
+# Kazanım Hesaplama
+Gain_X2 <- H_golf - ((P_X21 * H_Y_given_X21) + 
+                     (P_X22 * H_Y_given_X22) + 
+                     (P_X23 * H_Y_given_X23))
+
+# Sonucu yazdır
+Gain_X2
+```
+
+# Nem ÖZelliği için Entropi (X3)
+
+```{r}
+library(dplyr)
+humidity_count <- table(hava0yun$humidity)
+humidity_count
+NemY_count <- sum(hava0yun$humidity == "NemY")
+NemY_count
+NemN_count <- sum(hava0yun$humidity == "NemN")
+NemN_count
+
+total_category <- NemY_count  + NemN_count 
+total_category
+
+P_X31 <- NemY_count / total_category
+P_X32 <- NemN_count/total_category
+
+P_X31
+P_X32
+```
+## Nem "NemY" için
+```{r}
+library(dplyr)
+
+# NemY (Yüksek Nem - NemY) için veri
+nemy_data <- hava0yun %>% filter(humidity == "NemY")
+nemy_data
+
+# Oynama sayıları (Yes ve No)
+nemy_yes_count <- sum(nemy_data$play == "yes")
+nemy_no_count <- sum(nemy_data$play == "no")
+
+# NemY (Yüksek Nem) için toplam veri sayısı
+total_nemy <- nrow(nemy_data)
+
+# Olasılıklar
+p_nemy_yes <- nemy_yes_count / total_nemy
+p_nemy_no <- nemy_no_count / total_nemy
+
+# H(Y | NemY) Entropi Hesaplama
+H_Y_given_NemY <- - (p_nemy_yes * log2(p_nemy_yes) + p_nemy_no * log2(p_nemy_no))
+
+# Sonucu yazdır
+H_Y_given_NemY
+```
+```{r}
+# NemN (Normal Nem) için veri
+nemn_data <- hava0yun %>% filter(humidity == "NemN")
+nemn_data
+
+# Oynama sayıları (Yes ve No)
+nemn_yes_count <- sum(nemn_data$play == "yes")
+nemn_no_count <- sum(nemn_data$play == "no")
+
+# NemN (Normal Nem) için toplam veri sayısı
+total_nemn <- nrow(nemn_data)
+
+# Olasılıklar
+p_nemn_yes <- nemn_yes_count / total_nemn
+p_nemn_no <- nemn_no_count / total_nemn
+
+# H(Y | NemN) Entropi Hesaplama
+H_Y_given_NemN <- - (p_nemn_yes * log2(p_nemn_yes) + p_nemn_no * log2(p_nemn_no))
+
+# Sonucu yazdır
+H_Y_given_NemN
+```
+# Nem Özelliği İçin Kazanım Değeri Hesaplama
+```{r}
+# Toplam satır sayısı (tüm gözlemler)
+total_rows <- nrow(hava0yun)
+
+# Nem kategorileri için olasılıklar
+P_X31 <- nrow(nemy_data) / total_rows
+P_X32 <- nrow(nemn_data) / total_rows
+
+# H_golf daha önce hesaplanmış olmalı
+# Örnek olarak: H_golf <- 0.94
+
+# Nem Özelliği için Kazanım Hesaplama (Gain)
+Gain_X3 <- H_golf - ((P_X31 * H_Y_given_NemY) + 
+                     (P_X32 * H_Y_given_NemN))
+
+# Sonucu yazdır
+Gain_X3
+```
+
+# Rüzgar özelliği (X4) için entropi:
+
+```{r}
+library(dplyr)
+windy_count <- table(hava0yun$windy)
+windy_count
+true_count <- sum(hava0yun$windy == "true")
+true_count
+false_count <- sum(hava0yun$windy == "false")
+false_count
+
+total_category <- true_count  + false_count 
+total_category
+
+P_X41 <- true_count / total_category
+P_X42 <- false_count /total_category
+
+P_X41
+P_X42
+
+```
+## Rüzgar var (TRUE) için entropi
+```{r}
+windy_true_data <- hava0yun %>% filter(windy == "true")
+true_yes_count <- sum(windy_true_data$play == "yes")
+true_no_count <- sum(windy_true_data$play == "no")
+total_true <- nrow(windy_true_data)
+
+p_true_yes <- true_yes_count / total_true
+p_true_no <- true_no_count / total_true
+
+# H(Y | Rüzgar Var) Entropi Hesaplama
+H_Y_given_X41 <- - (p_true_yes * log2(p_true_yes) + p_true_no * log2(p_true_no))
+H_Y_given_X41
+```
+
+## # Rüzgar yok (FALSE) için entropi
+```{r}
+windy_false_data <- hava0yun %>% filter(windy == "false")
+false_yes_count <- sum(windy_false_data$play == "yes")
+false_no_count <- sum(windy_false_data$play == "no")
+total_false <- nrow(windy_false_data)
+
+p_false_yes <- false_yes_count / total_false
+p_false_no <- false_no_count / total_false
+
+# H(Y | Rüzgar Yok) Entropi Hesaplama
+H_Y_given_X42 <- - (p_false_yes * log2(p_false_yes) + p_false_no * log2(p_false_no))
+H_Y_given_X42
+```
+# Rüzgar Özelliği İçin Kazanım (GAİN) Değeri Hesaplama
+```{r}
+# H_golf daha önce hesaplanmış olmalı
+# Örnek olarak: H_golf <- 0.94
+
+# Rüzgar Özelliği için Kazanım Hesaplama (Gain)
+Gain_X4 <- H_golf - ((P_X41 * H_Y_given_X41) + 
+                     (P_X42 * H_Y_given_X42))
+
+# Sonucu yazdır
+Gain_X4
+```
+Elde edilen kazanım değerleri ;
+GOLF:                0.940286 
+HAVA :    Gain_X1:   0.2467498***
+SICAKLIK: Gain_X2:   0.04140546
+NEM :     Gain_X3:   0.1518355
+RÜZGAR :  Gain_X4:   0.04812703
+
+
+En yüksek kazanım değgeri hava için elde edilmiştir.
+Dolayısıyla kök düğümden yapılacak ilk dallandırma HAVA 'dan başlayacaktır.
+
+Özetle: 
+- Her bir kategori için önce yes ve no sayıları hesaplanır.
+- Ardından bu sayılara dayanarak olasılıklar belirlenir.
+- Son olarak, koşullu entropi H(Y | X) hesaplanır.
+- Bu kodları çalıştırarak her bir hava durumu kategorisi için entropi değerlerini elde edebilirsiniz.
+
+
+
+
+
