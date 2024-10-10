@@ -21,12 +21,14 @@ Categorical Data Handling: The algorithm can handle datasets with categorical va
 The following gain values were obtained from the decision tree analysis using the ID3 algorithm:
 
 - GOLF: 0.940286
-- HAVA (Weather): 0.2467498***
+- HAVA (Outlook): 0.2467498***
 - SICAKLIK (Temperature): 0.04140546
 - NEM (Humidity): 0.1518355
 - RÜZGAR (Wind): 0.04812703
 
  
- The gain values indicate the effectiveness of each attribute in classifying the target variable (GOLF). The higher the gain, the more informative the attribute is for making decisions in the classification process.
+The gain values indicate the effectiveness of each attribute in classifying the target variable (GOLF). The higher the gain, the more informative the attribute is for making decisions in the classification process.
 
+
+The highest gain value was obtained for HAVA (Outlook), meaning it provides the most information for classifying the target variable (GOLF). Therefore, the first branching in the decision tree will begin with the HAVA (Outlook) attribute at the root node.
 ![image](https://github.com/user-attachments/assets/7e96337c-c085-4c0b-994e-1e20b9b71110)
