@@ -1,0 +1,456 @@
+---
+title: "CART"
+author: "IVM Twoing kriteri"
+date: "2024-10-16"
+output:
+  word_document: default
+  html_document: default
+---
+# CART Algoritması
+Algoritma sınıfın kategorik veya sayısal olduğu durumlar için kullanılabilmektedir. Sınıfın kategorik olduğu durumlarda (classification trees) genelde, Twoing Kriteri (Twoing Criteria) veya Gini Ayırma Değeri (Gini Split Value) kullanılırken, sınıfın
+sayısal olduğu durumlarda (regression trees) dallandırma kriteri için Hata Kareler Toplamı kullanılmaktadır.
+
+
+Bu bölümde verilen 𝑅 uygulamalarını yapabilmek için rpart, rpart.plot ve mlbench paketlerinin yüklenmesi ve ayrıca bu paketlerle birlikte HouseVotes84 verisinin çağrılması gerekmektedir. Gerekli komutlar aşağıda verilmiştir.
+
+# Gerekli kütüphanelerin Yüklenmesi
+Not: Aşağıdaki paketler Console içinde çalıştırılmalıdır. 
+Toplu halde gözükmesi için chunk içinde gösterilmiştir.
+install.packages("rpart")        
+# Karar ağaçları için doğru paket adı
+install.packages("rpart.plot")  
+# Karar ağaçlarını çizdirmek için doğru paket adı
+install.packages("mlbench")
+install.packages("party")
+install.packages("partykit")
+# Veri setleri ve benchmark işlemleri için doğru paket adı
+# Kütüphanelerin çağrılması 
+```{r}
+
+library(rpart)
+library(rpart.plot)
+library(mlbench)
+# veri seti
+data("HouseVotes84")
+head(HouseVotes84)
+```
+# Twoing kriteri (twoing criteria)
+Twoing kriterine göre dallandırmada her bir bağımsız değişkenin bütün mümkün ikili ayrıştırmaları dikkate alınır. Tablo 3.21’de verilen örnek veri kümesini inceleyelim
+
+
+𝜙 (𝐷𝑖) = 2𝑃𝐿𝑃𝑅*𝑘∑𝑗=1[|||𝑃 (𝑌𝑗/𝐿) − 𝑃 (𝑌𝑗/𝑅)||| ]
+
+Burada
+𝜙 (𝐷𝑖) ∶ 𝑖. bölünme için twoing kriteri
+𝑃𝐿 ∶ 𝐷𝑖 bölünmesi için bir gözlemin ağacın solunda kalma olasılığı
+𝑃𝑅 ∶ 𝐷𝑖 bölünmesi için bir gözlemin ağacın sağında kalma olasılığı
+𝑃 (𝑌𝑗/𝐿) : Ağacın solundaki sınıfin 𝑗. düzeyinin olasılığı
+𝑃 (𝑌𝑗/𝑅) ∶ Ağacın sağında sınıfin 𝑗. düzeyinin olasılığıdır.
+
+# verilen golf verisi için CART (Classification and Regression Trees) algoritmasını kullanarak bir karar ağacı oluşturma ve Twoing kriterini hesaplama
+```{r}
+# Gerekli kütüphaneleri yükleyelim
+library(party)
+library(rpart)
+library(dplyr)
+library(party)
+library(partykit)
+# Golf verisi 
+data("WeatherPlay")
+# Veriyi inceleyelim
+print(WeatherPlay)
+```
+
+```{r}
+WeatherPlay$temperature[WeatherPlay$temperature >= 80] <- "Y"  # 80°F ve üzeri
+WeatherPlay$temperature[WeatherPlay$temperature < 80 & WeatherPlay$temperature >= 70] <- "N"  # 70-80°F arası
+WeatherPlay$temperature[WeatherPlay$temperature < 70] <- "D"  # 70°F'ten düşük
+
+```
+```{r}
+# Nem değerlerini kategorilere ayırma
+WeatherPlay$humidity[WeatherPlay$humidity > 80] <- "NemY"  # 80%'den yüksek nem
+WeatherPlay$humidity[WeatherPlay$humidity <= 80] <- "NemN"  # 80% veya daha az nem
+```
+
+hava0yun veri setinde, artık temperature ve humidity değişkenleri kategorik
+hale getirilmiştir.
+Sıcaklıklar Yüksek (Y), Normal (N), Düşük (D) olarak,
+nem ise Yüksek (NemY) ve Normal (NemN) olarak sınıflandırılmıştır.
+Bu dönüşüm, veriyi kategorik hale getirerek bazı sınıflandırma 
+algoritmalarında kullanmaya uygun hale getirildi.
+```{r}
+#  temperature ve humidity değişkenlerini factor tipine çevirme
+WeatherPlay$temperature <- factor(WeatherPlay$temperature, levels = c("Y", "N", "D"))
+WeatherPlay$humidity <- factor(WeatherPlay$humidity, levels = c("NemY", "NemN"))
+
+
+str(WeatherPlay)
+```
+
+
+```{r}
+# Parametreleri ayarlayarak modeli tekrar oluşturalım
+cart_model <- rpart(play ~ outlook + temperature + humidity + windy, 
+                    data = WeatherPlay, 
+                    method = "class",
+                    control = rpart.control(minsplit = 1, cp = 0.01))
+
+# Modeli görselleştirme
+plot(cart_model)
+text(cart_model, use.n = TRUE)
+# Karmaşıklık parametresini inceleyelim
+printcp(cart_model)
+```
+### Yorum: 
+Root node error: 5/14 = 0.35714
+Kök düğüm hatası, modelin en başta (bölünme olmadan önce) yaptığı hata oranını gösterir. Bu durumda kök düğümde hata oranı 5/14, yani %35.7'dir. Başka bir deyişle, veri setinde 14 örnek var ve bunlardan 5'i yanlış sınıflandırılıyor olabilir.
+
+Karmaşıklık Parametresi (CP) Tablosu
+ CP nsplit rel error xerror    xstd
+1 0.30      0       1.0    1.0 0.35857
+2 0.20      2       0.4    2.0 0.33806
+3 0.01      4       0.0    1.4 0.37417
+Bu tablo, ağacın büyüklüğünü ve karmaşıklığını gösterir:
+
+CP (Complexity Parameter): Ağacın karmaşıklık parametresidir. Küçük CP değerleri daha büyük ve daha karmaşık ağaçlar üretir. Burada, ağacınızda üç farklı karmaşıklık seviyesi bulunuyor.
+
+nsplit: Bu sütun, ağacın kaç bölünme (split) yaptığıdır. Örneğin, nsplit = 0 olan satır, ağacın bölünme yapmadığı hali (sadece kök düğüm) gösterir. nsplit = 2 ise iki bölünme olduğunu ifade eder.
+
+rel error (Relative Error): Göreceli hata oranıdır. Bu, ağacın hata oranını gösterir ve her yeni bölünme ile azalır. Kök düğümde hata oranı 1.0 (yani %100) olarak başlar, iki bölünmeden sonra bu oran 0.4’e düşer, yani %40 hata yapmaktadır.
+
+xerror (Cross-Validation Error): Çapraz doğrulama hatasıdır. Veriyi test etmek için çapraz doğrulama kullanıldığında elde edilen hata oranıdır. xerror = 1.0, çapraz doğrulamada modelin ilk durumda %100 hata yaptığını, ancak bölünmelerle azalabileceğini gösterir.
+
+xstd (Standard Deviation of xerror): Çapraz doğrulama hatasının standart sapmasıdır. Modelin doğruluğunun ne kadar değişken olduğunu gösterir. Daha düşük bir standart sapma, modelin daha tutarlı sonuçlar verdiğini gösterir.
+
+1. Başlangıçta Hata Oranı Yüksek: Model ilk olarak tüm veriyi tek bir sınıfa koyuyor ve %35.7 hata yapıyor (5 örneği yanlış sınıflıyor).
+2. Bölünmeler Hata Oranını Düşürüyor: Model iki bölünme yapıldığında hata oranı %40'a kadar düşüyor. Bu, karar ağacının daha iyi performans verdiğini gösterir.
+3. Daha Fazla Bölünme ile Hata Azalıyor: Dört bölünme yapıldığında göreceli hata 0'a iniyor, yani eğitim verisinde hata yapmıyor. Ancak, çapraz doğrulamada hatanın hala var olduğunu (xerror) gözlemliyoruz.
+Sonuç: Bu karar ağacı modeli, eğitim verisinde iyi performans gösteriyor, ancak çapraz doğrulama sonuçları modelin fazla uyum yapabileceğini (overfitting) işaret edebilir. Daha düşük CP değerleri ile daha karmaşık ağaçlar elde edebilirsiniz, ancak bu durumda test verisi üzerinde performansı yakından izlemek önemli olacaktır.
+
+
+# Örnek: Tablo 6.3’de verilen golf verisi için twoing kriterini kullanarak CART algoritmasına dayalı karar ağacını oluşturalım.
+
+Not: Hava Özelliği (Güneşli,Bulutlu, yağmurlu): Ağacın solu, Hava Güneşli ise
+Ağacın sağı, Hava Bulutlu, Yağmurlu olur; Ağacın solu, Hava Bulutlu ise Ağacın sağı, Hava Güneşli, Yağmurlu olur, gibi.
+
+𝐷1 durumunu dikkate alalım. Ağacın solu havanın güneşli (𝐺) olduğu duruma
+karşıllk gelirken ağacın sağı havanın bulutlu (B) veya yağmurlu (Y) olduğu duruma
+karşıllk gelmektedir. Bu durumda
+𝑃𝐿 =5/14 havanın güneşli olma olasılığı
+𝑃𝑅 =9/14 havanın bulutlu veya yağmurlu olma olasılığı
+𝑃 (𝑌1/𝐿) =3/5
+ağacın solu için maçın oynanmama olasılığı
+𝑃 (𝑌2/𝐿) =2/5
+ağacın solu için maçin oynanma olasılığı
+Bu değerler formülde yerine yazılırsa
+```{r}
+# Hava durumu verilerini içeren tabloyu oluştur
+play_count <- table(WeatherPlay$outlook, WeatherPlay$play)
+
+# Toplamları hesapla
+total_yes <- sum(play_count[, "yes"])
+total_no <- sum(play_count[, "no"])
+
+# Havanın güneşli olma olasılığı (P_L)
+sunny_yes <- play_count["sunny", "yes"]
+sunny_no <- play_count["sunny", "no"]
+P_L <- (sunny_yes + sunny_no) / (total_yes + total_no)
+P_L
+
+# Havanın bulutlu veya yağmurlu olma olasılığı (P_R)
+overcast_yes <- play_count["overcast", "yes"]
+overcast_no <- play_count["overcast", "no"]
+rainy_yes <- play_count["rainy", "yes"]
+rainy_no <- play_count["rainy", "no"]
+P_R <- (overcast_yes + overcast_no + rainy_yes + rainy_no) / (total_yes + total_no)
+P_R
+```
+```{r}
+# Hava durumu verilerini içeren tabloyu oluştur
+play_count <- table(WeatherPlay$outlook, WeatherPlay$play)
+
+# Havanın güneşli olduğu durumda "yes" ve "no" sayıları
+sunny_yes <- play_count["sunny", "yes"]
+sunny_no <- play_count["sunny", "no"]
+
+# Ağacın solu için olasılıkları hesapla
+total_sunny <- sunny_yes + sunny_no
+P_Y1_L <- sunny_no / total_sunny  # Maçın oynanmama olasılığı
+P_Y2_L <- sunny_yes / total_sunny  # Maçın oynanma olasılığı
+
+# Havanın bulutlu veya yağmurlu olduğu durumda "yes" ve "no" sayıları
+overcast_yes <- play_count["overcast", "yes"]
+overcast_no <- play_count["overcast", "no"]
+rainy_yes <- play_count["rainy", "yes"]
+rainy_no <- play_count["rainy", "no"]
+
+# Ağacın sağındaki toplamları hesapla
+total_overcast_rainy <- overcast_yes + overcast_no + rainy_yes + rainy_no
+
+# Havanın bulutlu veya yağmurlu olduğu durumda maçın oynanmama ve oynanma olasılıkları
+P_Y1_R <- (overcast_no + rainy_no) / total_overcast_rainy  # Maçın oynanmama olasılığı
+P_Y2_R <- (overcast_yes + rainy_yes) / total_overcast_rainy  # Maçın oynanma olasılığı
+
+# Havanın güneşli ve bulutlu/yağmurlu olma olasılıkları
+P_L <- 5 / 14  # Havanın güneşli olma olasılığı
+P_R <- 9 / 14  # Havanın bulutlu veya yağmurlu olma olasılığı
+
+# Twoing kriterini hesapla
+phi_D1 <- 2 * P_L * P_R * (abs(P_Y1_L - P_Y1_R) + abs(P_Y2_L - P_Y2_R))
+phi_D1
+```
+2. Durum (B = Sol, G + Y = Sağ):
+Aşağıda bulutlu (B) hava için ağacın solu ve güneşli ve yağmurlu (G, Y) hava için ağacın sağı olasılıklarını hesaplayacağız.
+```{r}
+
+# Havanın bulutlu (overcast) olduğu durumda "yes" ve "no" sayıları
+overcast_yes <- play_count["overcast", "yes"]
+overcast_no <- play_count["overcast", "no"]
+
+# Ağacın solu için olasılıkları hesapla
+total_overcast <- overcast_yes + overcast_no
+P_Y1_L_B <- overcast_no / total_overcast  # Maçın oynanmama olasılığı
+P_Y2_L_B <- overcast_yes / total_overcast  # Maçın oynanma olasılığı
+
+# Havanın güneşli ve yağmurlu olduğu durumda "yes" ve "no" sayıları
+sunny_yes <- play_count["sunny", "yes"]
+sunny_no <- play_count["sunny", "no"]
+rainy_yes <- play_count["rainy", "yes"]
+rainy_no <- play_count["rainy", "no"]
+
+# Ağacın sağındaki toplamları hesapla
+total_sunny_rainy <- sunny_yes + sunny_no + rainy_yes + rainy_no
+P_Y1_R_B <- (sunny_no + rainy_no) / total_sunny_rainy  # Maçın oynanmama olasılığı
+P_Y2_R_B <- (sunny_yes + rainy_yes) / total_sunny_rainy  # Maçın oynanma olasılığı
+
+# P_L ve P_R değerlerini daha önceki gibi
+P_L_B <- 4 / 14  # Havanın bulutlu olma olasılığı
+P_R_B <- 10 / 14  # Havanın güneşli veya yağmurlu olma olasılığı
+
+# Twoing kriterini hesapla (φ(D2))
+phi_D2 <- 2 * P_L_B * P_R_B * (abs(P_Y1_L_B - P_Y1_R_B) + abs(P_Y2_L_B - P_Y2_R_B))
+phi_D2 
+```
+3. Durum (Y = Sol, G + B = Sağ):
+Bu kez yağmurlu (Y) hava için ağacın solu ve güneşli ve bulutlu (G, B) hava için ağacın sağı olasılıklarını hesaplayacağız.
+```{r}
+# Havanın yağmurlu (rainy) olduğu durumda "yes" ve "no" sayıları
+rainy_yes <- play_count["rainy", "yes"]
+rainy_no <- play_count["rainy", "no"]
+
+# Ağacın solu için olasılıkları hesapla
+total_rainy <- rainy_yes + rainy_no
+P_Y1_L_Y <- rainy_no / total_rainy  # Maçın oynanmama olasılığı
+P_Y1_L_Y
+P_Y2_L_Y <- rainy_yes / total_rainy  # Maçın oynanma olasılığı
+P_Y2_L_Y
+# Havanın güneşli ve bulutlu olduğu durumda "yes" ve "no" sayıları
+sunny_yes <- play_count["sunny", "yes"]
+sunny_no <- play_count["sunny", "no"]
+overcast_yes <- play_count["overcast", "yes"]
+overcast_no <- play_count["overcast", "no"]
+
+# Ağacın sağındaki toplamları hesapla
+total_sunny_overcast <- sunny_yes + sunny_no + overcast_yes + overcast_no
+P_Y1_R_Y <- (sunny_no + overcast_no) / total_sunny_overcast  # Maçın oynanmama olasılığı
+P_Y2_R_Y <- (sunny_yes + overcast_yes) / total_sunny_overcast  # Maçın oynanma olasılığı
+P_Y1_R_Y
+P_Y2_R_Y 
+# P_L ve P_R değerlerini daha önceki gibi
+P_L_Y <- 5 / 14  # Havanın yağmurlu olma olasılığı
+P_R_Y <- 9 / 14  # Havanın güneşli veya bulutlu olma olasılığı
+
+# Twoing kriterini hesapla (φ(D3))
+phi_D3 <- 2 * P_L_Y * P_R_Y * (abs(P_Y1_L_Y - P_Y1_R_Y) + abs(P_Y2_L_Y - P_Y2_R_Y))
+phi_D3
+
+
+```
+4. Durum (Sıcaklık Yüksek = Sol, Normal ve Düşük = Sağ):
+```{r}
+# Önce veriyi sıcaklık ve 'play' faktörüne göre gruplandıralım
+temp_play_count <- table(WeatherPlay$temperature, WeatherPlay$play)
+
+# Gruplandırılmış tabloyu yazdırarak kontrol edelim
+print(temp_play_count)
+# Sıcaklık Yüksek (Y) olan durumda "yes" ve "no" sayıları
+high_temp_yes <- temp_play_count["Y", "yes"]
+high_temp_no <- temp_play_count["Y", "no"]
+
+# Toplam sayılar
+total_high_temp <- high_temp_yes + high_temp_no
+
+# Sıcaklık Normal (N) ve Düşük (D) olan durumda "yes" ve "no" sayıları
+normal_temp_yes <- temp_play_count["N", "yes"]
+normal_temp_no <- temp_play_count["N", "no"]
+
+low_temp_yes <- temp_play_count["D", "yes"]
+low_temp_no <- temp_play_count["D", "no"]
+
+# Toplam sayılar
+total_normal_low_temp <- normal_temp_yes + normal_temp_no + low_temp_yes + low_temp_no
+
+# Olasılıkları hesapla
+P_Y1_L_high <- high_temp_no / total_high_temp  # Maçın oynanmama olasılığı (sol)
+P_Y2_L_high <- high_temp_yes / total_high_temp  # Maçın oynanma olasılığı (sol)
+
+P_Y1_R_high <- (normal_temp_no + low_temp_no) / total_normal_low_temp  # Maçın oynanmama olasılığı (sağ)
+P_Y2_R_high <- (normal_temp_yes + low_temp_yes) / total_normal_low_temp  # Maçın oynanma olasılığı (sağ)
+
+# P_L ve P_R
+P_L_high <- total_high_temp / sum(temp_play_count)  # Yüksek sıcaklık olasılığı
+P_R_high <- total_normal_low_temp / sum(temp_play_count)  # Normal ve düşük sıcaklık olasılığı
+
+# Twoing kriteri (𝜙(D4))
+phi_D4 <- 2 * P_L_high * P_R_high * (abs(P_Y1_L_high - P_Y1_R_high) + abs(P_Y2_L_high - P_Y2_R_high))
+phi_D4
+
+
+
+```
+5. Durum (Sıcaklık Normal = Sol, Yüksek ve Düşük = Sağ):
+```{r}
+# Sıcaklık Normal (N) olan durumda "yes" ve "no" sayıları
+normal_temp_yes <- temp_play_count["N", "yes"]
+normal_temp_no <- temp_play_count["N", "no"]
+
+# Toplam sayılar
+total_normal_temp <- normal_temp_yes + normal_temp_no
+
+
+# Sıcaklık Yüksek (Y) ve Düşük (D) olan durumda "yes" ve "no" sayıları
+high_temp_yes <- temp_play_count["Y", "yes"]
+high_temp_no <- temp_play_count["Y", "no"]
+
+low_temp_yes <- temp_play_count["D", "yes"]
+low_temp_no <- temp_play_count["D", "no"]
+
+# Toplam sayılar
+total_high_low_temp <- high_temp_yes + high_temp_no + low_temp_yes + low_temp_no
+
+# Olasılıkları hesapla
+P_Y1_L_normal <- normal_temp_no / total_normal_temp  # Maçın oynanmama olasılığı (sol)
+P_Y2_L_normal <- normal_temp_yes / total_normal_temp  # Maçın oynanma olasılığı (sol)
+
+P_Y1_R_normal <- (high_temp_no + low_temp_no) / total_high_low_temp  # Maçın oynanmama olasılığı (sağ)
+P_Y2_R_normal <- (high_temp_yes + low_temp_yes) / total_high_low_temp  # Maçın oynanma olasılığı (sağ)
+
+# P_L ve P_R
+P_L_normal <- total_normal_temp / sum(temp_play_count)  # Normal sıcaklık olasılığı
+P_R_normal <- total_high_low_temp / sum(temp_play_count)  # Yüksek ve düşük sıcaklık olasılığı
+
+# Twoing kriteri (𝜙(D5))
+phi_D5 <- 2 * P_L_normal * P_R_normal * (abs(P_Y1_L_normal - P_Y1_R_normal) + abs(P_Y2_L_normal - P_Y2_R_normal))
+
+phi_D5 
+
+
+```
+6. Durum (Sıcaklık Düşük = Sol, Yüksek ve Normal = Sağ):
+```{r}
+# Sıcaklık Düşük (D) olan durumda "yes" ve "no" sayıları
+low_temp_yes <- temp_play_count["D", "yes"]
+low_temp_no <- temp_play_count["D", "no"]
+
+# Yüksek (Y) ve Normal (N) olan durumlar için "yes" ve "no" sayıları
+high_temp_yes <- temp_play_count["Y", "yes"]
+high_temp_no <- temp_play_count["Y", "no"]
+
+normal_temp_yes <- temp_play_count["N", "yes"]
+normal_temp_no <- temp_play_count["N", "no"]
+
+# Toplam sayılar
+total_low_temp <- low_temp_yes + low_temp_no
+total_high_normal_temp <- high_temp_yes + high_temp_no + normal_temp_yes + normal_temp_no
+
+# Olasılıkları hesapla
+P_Y1_L_low <- low_temp_no / total_low_temp  # Maçın oynanmama olasılığı (sol)
+P_Y2_L_low <- low_temp_yes / total_low_temp  # Maçın oynanma olasılığı (sol)
+
+P_Y1_R_low <- (high_temp_no + normal_temp_no) / total_high_normal_temp  # Maçın oynanmama olasılığı (sağ)
+P_Y2_R_low <- (high_temp_yes + normal_temp_yes) / total_high_normal_temp  # Maçın oynanma olasılığı (sağ)
+
+# P_L ve P_R
+P_L_low <- total_low_temp / sum(temp_play_count)  # Düşük sıcaklık olasılığı
+P_R_low <- total_high_normal_temp / sum(temp_play_count)  # Yüksek ve normal sıcaklık olasılığı
+
+# Twoing kriteri (𝜙(D6))
+phi_D6 <- 2 * P_L_low * P_R_low * (abs(P_Y1_L_low - P_Y1_R_low) + abs(P_Y2_L_low - P_Y2_R_low))
+
+phi_D6
+
+```
+
+
+
+7. Durum (Nem Yüksek = Sol, Normal = Sağ):
+```{r}
+
+# Nem durumuna göre yes/no tablosu oluştur
+humidity_play_count <- table(WeatherPlay$humidity, WeatherPlay$play)
+print(humidity_play_count)
+
+# Nem Yüksek (Y) olan durumda "yes" ve "no" sayıları
+high_humidity_yes <- humidity_play_count["NemY", "yes"]
+high_humidity_no <- humidity_play_count["NemY", "no"]
+
+# Normal (N) olan durumlar için "yes" ve "no" sayıları
+normal_humidity_yes <- humidity_play_count["NemN", "yes"]
+normal_humidity_no <- humidity_play_count["NemN", "no"]
+
+# Toplam sayılar
+total_high_humidity <- high_humidity_yes + high_humidity_no
+total_normal_humidity <- normal_humidity_yes + normal_humidity_no
+
+# Olasılıkları hesapla
+P_Y1_L_humidity <- high_humidity_no / total_high_humidity  # Maçın oynanmama olasılığı (sol)
+P_Y2_L_humidity <- high_humidity_yes / total_high_humidity  # Maçın oynanma olasılığı (sol)
+
+P_Y1_R_humidity <- normal_humidity_no / total_normal_humidity  # Maçın oynanmama olasılığı (sağ)
+P_Y2_R_humidity <- normal_humidity_yes / total_normal_humidity  # Maçın oynanma olasılığı (sağ)
+
+# P_L ve P_R
+P_L_humidity <- total_high_humidity / sum(humidity_play_count)  # Yüksek nem olasılığı
+P_R_humidity <- total_normal_humidity / sum(humidity_play_count)  # Normal nem olasılığı
+
+# Twoing kriteri (𝜙(D7))
+phi_D7 <- 2 * P_L_humidity * P_R_humidity * (abs(P_Y1_L_humidity - P_Y1_R_humidity) + abs(P_Y2_L_humidity - P_Y2_R_humidity))
+
+phi_D7
+
+```
+8. Durum (Rüzgar Evet = Sol, Hayır = Sağ):
+```{r}
+# Rüzgardurumuna göre yes/no tablosu oluştur
+windy_play_count <- table(WeatherPlay$windy, WeatherPlay$play)
+print(windy_play_count)
+
+# Rüzgar Evet (True) olan durumda "yes" ve "no" sayıları
+windy_yes <- windy_play_count["true", "yes"]
+windy_no <- windy_play_count["true", "no"]
+
+# Rüzgar Hayır (False) olan durumda "yes" ve "no" sayıları
+no_windy_yes <- windy_play_count["false", "yes"]
+no_windy_no <- windy_play_count["false", "no"]
+
+# Toplam sayılar
+total_windy_yes <- windy_yes + windy_no
+total_windy_no <- no_windy_yes + no_windy_no
+
+# Olasılıkları hesapla
+P_Y1_L_windy <- windy_no / total_windy_yes  # Maçın oynanmama olasılığı (sol)
+P_Y2_L_windy <- windy_yes / total_windy_yes  # Maçın oynanma olasılığı (sol)
+
+P_Y1_R_windy <- no_windy_no / total_windy_no  # Maçın oynanmama olasılığı (sağ)
+P_Y2_R_windy <- no_windy_yes / total_windy_no  # Maçın oynanma olasılığı (sağ)
+
+# P_L ve P_R
+P_L_windy <- total_windy_yes / sum(windy_play_count)  # Rüzgar evet olasılığı
+P_R_windy <- total_windy_no / sum(windy_play_count)  # Rüzgar hayır olasılığı
+
+# Twoing kriteri (𝜙(D8))
+phi_D8 <- 2 * P_L_windy * P_R_windy * (abs(P_Y1_L_windy - P_Y1_R_windy) + abs(P_Y2_L_windy - P_Y2_R_windy))
+phi_D8
+```
+

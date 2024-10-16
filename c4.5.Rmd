@@ -1,0 +1,44 @@
+---
+title: "C4.5 (J48) Algoritması"
+author: "gulsah kilic"
+date: "2024-10-16"
+output:
+  word_document: default
+  html_document: default
+---
+# C4.5 (J48) Algoritması
+
+## Yüklenmesi gereken kütüphaneler
+install.packages("RWekajars")
+install.packages("RWeka")
+install.packages("partykit")
+install.packages("party")
+
+```{r}
+library("RWeka")
+library("RWekajars")
+library("partykit")
+data("WeatherPlay")
+res<-J48(play ~ ., data=WeatherPlay)
+summary(res)
+```
+
+```{r}
+if(require("partykit", quietly = TRUE))plot(res)
+```
+Örnek: iris verisine ilişkin karar ağacınıR paket programında C4.5 algoritması ile oluşturunuz.
+
+```{r}
+data("iris")
+head(iris)
+res<-J48(Species ~ ., data=iris)
+summary(res)
+
+```
+```{r}
+plot(res)
+if(require("partykit", quietly = TRUE))plot(res)
+```
+
+
+
