@@ -17,14 +17,16 @@ Bu bölümde verilen 𝑅 uygulamalarını yapabilmek için rpart, rpart.plot ve
 Not: Aşağıdaki paketler Console içinde çalıştırılmalıdır. 
 Toplu halde gözükmesi için chunk içinde gösterilmiştir.
 install.packages("rpart")        
-# Karar ağaçları için doğru paket adı
+NOT:
+Karar ağaçları için doğru paket adı
 install.packages("rpart.plot")  
-# Karar ağaçlarını çizdirmek için doğru paket adı
+NOT:
+Karar ağaçlarını çizdirmek için doğru paket adı
 install.packages("mlbench")
 install.packages("party")
 install.packages("partykit")
-# Veri setleri ve benchmark işlemleri için doğru paket adı
-# Kütüphanelerin çağrılması 
+NOT: Veri setleri ve benchmark işlemleri için doğru paket adı
+Kütüphanelerin çağrılması 
 ```{r}
 
 library(rpart)
@@ -47,7 +49,8 @@ Burada
 𝑃 (𝑌𝑗/𝐿) : Ağacın solundaki sınıfin 𝑗. düzeyinin olasılığı
 𝑃 (𝑌𝑗/𝑅) ∶ Ağacın sağında sınıfin 𝑗. düzeyinin olasılığıdır.
 
-# verilen golf verisi için CART (Classification and Regression Trees) algoritmasını kullanarak bir karar ağacı oluşturma ve Twoing kriterini hesaplama
+# Verilen golf verisi için CART (Classification and Regression Trees) algoritmasını kullanarak bir karar ağacı oluşturma ve Twoing kriterini hesaplama
+## Veri setini yükleme
 ```{r}
 # Gerekli kütüphaneleri yükleyelim
 library(party)
@@ -60,7 +63,7 @@ data("WeatherPlay")
 # Veriyi inceleyelim
 print(WeatherPlay)
 ```
-
+### Değişkenleri sınıflandırma
 ```{r}
 WeatherPlay$temperature[WeatherPlay$temperature >= 80] <- "Y"  # 80°F ve üzeri
 WeatherPlay$temperature[WeatherPlay$temperature < 80 & WeatherPlay$temperature >= 70] <- "N"  # 70-80°F arası
@@ -79,32 +82,56 @@ Sıcaklıklar Yüksek (Y), Normal (N), Düşük (D) olarak,
 nem ise Yüksek (NemY) ve Normal (NemN) olarak sınıflandırılmıştır.
 Bu dönüşüm, veriyi kategorik hale getirerek bazı sınıflandırma 
 algoritmalarında kullanmaya uygun hale getirildi.
+#### Faktör tipine çevirme 
 ```{r}
 #  temperature ve humidity değişkenlerini factor tipine çevirme
 WeatherPlay$temperature <- factor(WeatherPlay$temperature, levels = c("Y", "N", "D"))
 WeatherPlay$humidity <- factor(WeatherPlay$humidity, levels = c("NemY", "NemN"))
-
-
 str(WeatherPlay)
 ```
 
+# Karar Ağacını Görselleştirilmesi
+```{r}
+# rpart.plot kütüphanesini yükle
+install.packages("rpart.plot")  # Eğer daha önce yüklemediyseniz
+library(rpart.plot)
+
+# Modeli tekrar oluştur
+cart_model <- rpart(play ~ outlook + temperature + humidity + windy, 
+                     data = WeatherPlay, 
+                     method = "class",
+                     control = rpart.control(minsplit = 1, cp = 0.01))
+
+# Modeli görselleştirme
+rpart.plot(cart_model, type = 4, extra = 101)
+```
 
 ```{r}
-# Parametreleri ayarlayarak modeli tekrar oluşturalım
+# Modeli tekrar oluştur
+library(rpart.plot)
+cart_model <- rpart(play ~ outlook + temperature + humidity + windy, 
+                     data = WeatherPlay, 
+                     method = "class",
+                     control = rpart.control(minsplit = 1, cp = 0.01))
+
+# Modeli DiagrammeR ile görselleştirme
+grr <- rpart.plot(cart_model, type = 3, extra = 102)
+
+```
+
+### Yorum: 
+Root node error: 5/14 = 0.35714
+Kök düğüm hatası, modelin en başta (bölünme olmadan önce) yaptığı hata oranını gösterir. Bu durumda kök düğümde hata oranı 5/14, yani %35.7'dir. Başka bir deyişle, veri setinde 14 örnek var ve bunlardan 5'i yanlış sınıflandırılıyor olabilir.
+# Karmaşıklık Matrisi
+```{r}
 cart_model <- rpart(play ~ outlook + temperature + humidity + windy, 
                     data = WeatherPlay, 
                     method = "class",
                     control = rpart.control(minsplit = 1, cp = 0.01))
 
-# Modeli görselleştirme
-plot(cart_model)
-text(cart_model, use.n = TRUE)
 # Karmaşıklık parametresini inceleyelim
 printcp(cart_model)
 ```
-### Yorum: 
-Root node error: 5/14 = 0.35714
-Kök düğüm hatası, modelin en başta (bölünme olmadan önce) yaptığı hata oranını gösterir. Bu durumda kök düğümde hata oranı 5/14, yani %35.7'dir. Başka bir deyişle, veri setinde 14 örnek var ve bunlardan 5'i yanlış sınıflandırılıyor olabilir.
 
 Karmaşıklık Parametresi (CP) Tablosu
  CP nsplit rel error xerror    xstd
@@ -129,7 +156,7 @@ xstd (Standard Deviation of xerror): Çapraz doğrulama hatasının standart sap
 Sonuç: Bu karar ağacı modeli, eğitim verisinde iyi performans gösteriyor, ancak çapraz doğrulama sonuçları modelin fazla uyum yapabileceğini (overfitting) işaret edebilir. Daha düşük CP değerleri ile daha karmaşık ağaçlar elde edebilirsiniz, ancak bu durumda test verisi üzerinde performansı yakından izlemek önemli olacaktır.
 
 
-# Örnek: Tablo 6.3’de verilen golf verisi için twoing kriterini kullanarak CART algoritmasına dayalı karar ağacını oluşturalım.
+# Örnek: Verilen golf verisi için twoing kriterini kullanarak CART algoritmasına dayalı karar ağacını oluşturalım.
 
 Not: Hava Özelliği (Güneşli,Bulutlu, yağmurlu): Ağacın solu, Hava Güneşli ise
 Ağacın sağı, Hava Bulutlu, Yağmurlu olur; Ağacın solu, Hava Bulutlu ise Ağacın sağı, Hava Güneşli, Yağmurlu olur, gibi.
@@ -147,7 +174,7 @@ Bu değerler formülde yerine yazılırsa
 ```{r}
 # Hava durumu verilerini içeren tabloyu oluştur
 play_count <- table(WeatherPlay$outlook, WeatherPlay$play)
-
+play_count
 # Toplamları hesapla
 total_yes <- sum(play_count[, "yes"])
 total_no <- sum(play_count[, "no"])
@@ -193,8 +220,8 @@ P_Y1_R <- (overcast_no + rainy_no) / total_overcast_rainy  # Maçın oynanmama o
 P_Y2_R <- (overcast_yes + rainy_yes) / total_overcast_rainy  # Maçın oynanma olasılığı
 
 # Havanın güneşli ve bulutlu/yağmurlu olma olasılıkları
-P_L <- 5 / 14  # Havanın güneşli olma olasılığı
-P_R <- 9 / 14  # Havanın bulutlu veya yağmurlu olma olasılığı
+P_L <- (sunny_yes + sunny_no) / sum(play_count)  # Havanın güneşli olma olasılığı
+P_R <- (overcast_yes + overcast_no + rainy_yes + rainy_no) / sum(play_count)  # Havanın bulutlu veya yağmurlu olma olasılığı
 
 # Twoing kriterini hesapla
 phi_D1 <- 2 * P_L * P_R * (abs(P_Y1_L - P_Y1_R) + abs(P_Y2_L - P_Y2_R))
@@ -453,4 +480,344 @@ P_R_windy <- total_windy_no / sum(windy_play_count)  # Rüzgar hayır olasılı�
 phi_D8 <- 2 * P_L_windy * P_R_windy * (abs(P_Y1_L_windy - P_Y1_R_windy) + abs(P_Y2_L_windy - P_Y2_R_windy))
 phi_D8
 ```
+```{r}
+# Phi değerleri
+phi_values <- c(
+  phi_D1,  # D1 için hesaplanan değer
+  phi_D2,  # D2 için hesaplanan değer
+  phi_D3,  # D3 için hesaplanan değer
+  phi_D4,  # D4 için hesaplanan değer
+  phi_D5,  # D5 için hesaplanan değer
+  phi_D6,  # D6 için hesaplanan değer
+  phi_D7,  # D7 için hesaplanan değer
+  phi_D8   # D8 için hesaplanan değer
+)
+
+# Tablo oluşturma
+phi_table <- data.frame(
+  Condition = paste0("D", 1:8),
+  Phi_Value = phi_values
+)
+
+# Tabloyu yazdır
+print(phi_table)
+```
+# Dallanmaların Sıralaması:
+Ayrışma gücü en yüksek olan dallanmalardan başlanarak ağaç yapısı oluşturulur: D7	0.42857143
+
+
+D7: Nem (Yüksek)
+Nemin yüksek olduğu durum için veri tablosu aşağıdaki gibi olur. 7 gözlemlik
+bu veri alt kümesi için (nem=yüksek) mümkün ikili bölünmeler aşağıdaki gibi
+verilebilir.
+```{r}
+library(dplyr)
+ny <- WeatherPlay %>% filter(humidity == "NemY")
+ny
+```
+1. Hava Durumuna Göre (Güneşli, Bulutlu, Yağmurlu) 3 durum var 
+2. Sıcaklık Durumuna Göre (Yüksek,Normal) 1 durum var 
+3. Rüzgar Durumuna Göre (true, false) 1 durum var. 
+toplam 5 durum hesaplanacak.
+
+Hava Durumu
+Hava Durumu: Nemli (Yüksek)
+
+1. Sol Dal (Ağacın Solu): Havanın güneşli olduğu durum (G)
+2. Sağ Dal (Ağacın Sağı): Havanın bulutlu veya yağmurlu olduğu durum (B, Y)
+
+       Ağacın solu   Ağacın sağı
+Hava       G            B, Y 
+```{r}
+# Hava Durumuna Göre "play" sayısını hesapla
+play_count <- table(ny$outlook, ny$play)
+
+# Havanın Bulutlu ve Yağmurlu olduğu durumda "yes" ve "no" sayıları
+overcast_yes <- play_count["overcast", "yes"]
+overcast_no <- play_count["overcast", "no"]
+rainy_yes <- play_count["rainy", "yes"]
+rainy_no <- play_count["rainy", "no"]
+
+# Toplam sayılar
+total_overcast_rainy <- overcast_yes + overcast_no + rainy_yes + rainy_no
+
+# Ağacın Solu (Güneşli)
+sunny_yes <- play_count["sunny", "yes"]
+sunny_no <- play_count["sunny", "no"]
+total_sunny <- sunny_yes + sunny_no
+
+# Ağacın Solu için olasılıklar
+P_Y1_L <- sunny_no / total_sunny  # Oynanmama olasılığı (Ağacın Solu)
+P_Y2_L <- sunny_yes / total_sunny  # Oynanma olasılığı (Ağacın Solu)
+
+# Ağacın Sağı (Bulutlu veya Yağmurlu)
+P_Y1_R <- (overcast_no + rainy_no) / total_overcast_rainy  # Oynanmama olasılığı (Ağacın Sağı)
+P_Y2_R <- (overcast_yes + rainy_yes) / total_overcast_rainy  # Oynanma olasılığı (Ağacın Sağı)
+
+# Hava durumları için olasılıkları
+P_L <- total_sunny / (total_overcast_rainy + total_sunny)  # Güneşli olasılığı
+P_R <- total_overcast_rainy / (total_overcast_rainy + total_sunny)  # Bulutlu/Yağmurlu olasılığı
+
+# Twoing kriterini hesapla
+phi_D <- 2 * P_L * P_R * (abs(P_Y1_L - P_Y1_R) + abs(P_Y2_L - P_Y2_R))
+phi_D  # Sonuç  0.7346939
+```
+      Ağacın solu     Ağacın sağı
+ Hava      B              G, Y
+```{r}
+library(dplyr)
+
+# Nemin yüksek olduğu durumu filtrele
+ny <- WeatherPlay %>% filter(humidity == "NemY")
+
+# Hava durumu ve oyun sonuçları için kontroller
+play_count <- table(ny$outlook, ny$play)
+
+# Havanın Bulutlu, Güneşli ve Yağmurlu olduğu durumda "yes" ve "no" sayıları
+overcast_yes <- play_count["overcast", "yes"]
+overcast_no <- play_count["overcast", "no"]
+sunny_yes <- play_count["sunny", "yes"]
+sunny_no <- play_count["sunny", "no"]
+rainy_yes <- play_count["rainy", "yes"]
+rainy_no <- play_count["rainy", "no"]
+
+# Toplam sayılar
+total_overcast <- overcast_yes + overcast_no
+total_sunny_rainy <- sunny_yes + sunny_no + rainy_yes + rainy_no
+total_cases <- total_overcast + total_sunny_rainy  # Toplam durum sayısı
+
+# Ağacın Solu (Yağmurlu)
+P_Y1_L <- overcast_no / total_overcast  # Oynanmama olasılığı (Ağacın Solu)
+P_Y2_L <- overcast_yes / total_overcast  # Oynanma olasılığı (Ağacın Solu)
+
+# Ağacın Sağı (Güneşli veya Bulutlu)
+P_Y1_R <- (sunny_no +  rainy_no) / total_sunny_rainy  # Oynanmama olasılığı (Ağacın Sağı)
+P_Y2_R <- (sunny_yes + rainy_yes) / total_sunny_rainy  # Oynanma olasılığı (Ağacın Sağı)
+
+# Hava durumları için olasılıkları
+P_L <- total_overcast / total_cases  # Yağmurlu olasılığı
+P_R <- total_sunny_rainy / total_cases  # Güneşli veya Bulutlu olasılığı
+
+# Twoing kriterini hesapla
+phi_D <- 2 * P_L * P_R * (abs(P_Y1_L - P_Y1_R) + abs(P_Y2_L - P_Y2_R))
+phi_D  # Sonuç  0.6530612
+```
+     Nemin yüksek olduğu durumda 
+     Ağacın solu Ağacın sağı
+Hava    Y              G, B       
+```{r}
+library(dplyr)
+
+# Nemin yüksek olduğu durumu filtrele
+ny <- WeatherPlay %>% filter(humidity == "NemY")
+
+# Hava durumu ve oyun sonuçları için kontroller
+play_count <- table(ny$outlook, ny$play)
+
+# Havanın Bulutlu, Güneşli ve Yağmurlu olduğu durumda "yes" ve "no" sayıları
+overcast_yes <- play_count["overcast", "yes"]
+overcast_no <- play_count["overcast", "no"]
+sunny_yes <- play_count["sunny", "yes"]
+sunny_no <- play_count["sunny", "no"]
+rainy_yes <- play_count["rainy", "yes"]
+rainy_no <- play_count["rainy", "no"]
+
+# Toplam sayılar
+total_rainy <- rainy_yes + rainy_no
+total_overcast_sunny <- sunny_yes + sunny_no + overcast_yes + overcast_no
+total_cases <- total_rainy + total_overcast_sunny  # Toplam durum sayısı
+
+# Ağacın Solu (Yağmurlu)
+P_Y1_L <- rainy_no / total_rainy  # Oynanmama olasılığı (Ağacın Solu)
+P_Y2_L <- rainy_yes / total_rainy  # Oynanma olasılığı (Ağacın Solu)
+
+# Ağacın Sağı (Güneşli veya Bulutlu)
+P_Y1_R <- (sunny_no + overcast_no) / total_overcast_sunny  # Oynanmama olasılığı (Ağacın Sağı)
+P_Y2_R <- (sunny_yes + overcast_yes) / total_overcast_sunny  # Oynanma olasılığı (Ağacın Sağı)
+
+# Hava durumları için olasılıkları
+P_L <- total_rainy / total_cases  # Yağmurlu olasılığı
+P_R <- total_overcast_sunny / total_cases  # Güneşli veya Bulutlu olasılığı
+
+# Twoing kriterini hesapla
+phi_D <- 2 * P_L * P_R * (abs(P_Y1_L - P_Y1_R) + abs(P_Y2_L - P_Y2_R))
+phi_D  # Sonuç  0.08163265
+
+```
+```{r}
+library(dplyr)
+
+# Nemin yüksek olduğu durumu filtrele
+ny <- WeatherPlay %>% filter(humidity == "NemY")
+
+# Hava durumu ve oyun sonuçları için kontroller
+play_count <- table(ny$outlook, ny$play)
+
+# Sıcaklık durumları için kontroller
+temp_count <- table(ny$temperature, ny$play)
+
+# Sıcaklık için "yüksek" ve "normal" durumları
+high_yes <- temp_count["Y", "yes"]
+high_no <- temp_count["Y", "no"]
+normal_yes <- temp_count["N", "yes"]
+normal_no <- temp_count["N", "no"]
+
+# Toplam sayılar
+total_high <- high_yes + high_no
+total_normal <- normal_yes + normal_no
+total_temperature <- total_high + total_normal
+
+# Sıcaklık için olasılıklar
+P_Y1_L_temp <- high_no / total_high  # Oynanmama olasılığı (Yüksek sıcaklık)
+P_Y2_L_temp <- high_yes / total_high  # Oynanma olasılığı (Yüksek sıcaklık)
+P_Y1_R_temp <- normal_no / total_normal  # Oynanmama olasılığı (Normal sıcaklık)
+P_Y2_R_temp <- normal_yes / total_normal  # Oynanma olasılığı (Normal sıcaklık)
+
+# Hava durumu için olasılıkları
+P_L_temp <- total_high / total_temperature  # Yüksek sıcaklık olasılığı
+P_R_temp <- total_normal / total_temperature  # Normal sıcaklık olasılığı
+
+# Twoing kriterini hesapla
+phi_D_temp <- 2 * P_L_temp * P_R_temp * (abs(P_Y1_L_temp - P_Y1_R_temp) + abs(P_Y2_L_temp - P_Y2_R_temp))
+phi_D_temp  # Sonuç  0.1632653
+```
+       Ağacın solu Ağacın sağı
+Rüzgar    E               H 
+```{r}
+library(dplyr)
+
+# Nemin yüksek olduğu durumu filtrele
+ny <- WeatherPlay %>% filter(humidity == "NemY")
+
+# Hava durumu ve oyun sonuçları için kontroller
+play_count <- table(ny$outlook, ny$play)
+
+# Rüzgar durumu için kontroller
+wind_count <- table(ny$wind, ny$play)
+
+# Rüzgar için "Evet" ve "Hayır" durumları
+wind_yes <- wind_count["true", "yes"]
+wind_no <- wind_count["true", "no"]
+not_wind_yes <- wind_count["false", "yes"]
+not_wind_no <- wind_count["false", "no"]
+
+total_wind <- wind_yes + wind_no
+total_not_wind <- not_wind_yes + not_wind_no
+total_cases <- sum(play_count)
+
+# Rüzgar "Evet" için olasılıklar
+P_Y1_L_wind <- wind_no / total_wind  # Oynanmama olasılığı (Rüzgar "Evet")
+P_Y2_L_wind <- wind_yes / total_wind  # Oynanma olasılığı (Rüzgar "Evet")
+
+# Rüzgar "Hayır" durumu için olasılıklar
+P_Y1_R_wind <- not_wind_no / total_not_wind  # Oynanmama olasılığı (Rüzgar "Hayır")
+P_Y2_R_wind <- not_wind_yes / total_not_wind  # Oynanma olasılığı (Rüzgar "Hayır")
+
+# Rüzgar olasılıkları
+P_L_wind <- total_wind / total_cases  # Rüzgar "Evet" olasılığı
+P_R_wind <- total_not_wind / total_cases  # Rüzgar "Hayır" olasılığı
+
+# Twoing kriterini hesapla
+phi_D_wind <- 2 * P_L_wind * P_R_wind * (abs(P_Y1_L_wind - P_Y1_R_wind) + abs(P_Y2_L_wind - P_Y2_R_wind))
+phi_D_wind  # Sonuç 0.1632653
+```
+
+install.packages(“C50”) 
+```{r}
+library(datasets) 
+library(caTools)
+library(party)
+library(dplyr)
+library(magrittr)
+library(RWeka) 
+# Veriyi eğitim ve test olarak bölelim
+set.seed(1234)  # Rastgelelik için sabit tohum
+sample_data = sample.split(WeatherPlay, SplitRatio = 0.7)
+train_data <- subset(WeatherPlay, sample_data == TRUE)
+test_data <- subset(WeatherPlay, sample_data == FALSE)
+```
+install.packages("rpart")
+```{r}
+# rpart paketini yükle ve Karar Ağacı Modelinin Oluşturulması
+
+library(rpart)
+
+# Gini indeksi kullanarak karar ağacı modeli oluştur
+gini <- rpart(play ~ ., data = WeatherPlay, 
+               method = "class", minsplit = 4, parms = list(split = "gini"))
+
+# Modelin özetini göster
+summary(gini)
+
+# Modeli görüntüle
+print(gini)
+```
+
+```{r}
+# Tahmin yapmak için Gini modeli kullan
+tahmin_Gini <- predict(gini, test_data, type = "class")
+
+# Tahmin sonuçlarını yazdır
+print(tahmin_Gini)
+```
+```{r}
+# caret kütüphanesini yükle
+library(caret)
+
+# Karışıklık matrisini elde et
+cm_gini <- confusionMatrix(data = tahmin_Gini, reference = test_data$play) # 'play' hedef değişkeni
+print(cm_gini)
+```
+install.packages("C50")
+# Outlook değişkeni için sol (sunny, rainy) sağ (overcast) Dallanma için küçük bir örnek
+```{r}
+# C50 paketini yükle
+library(C50)
+
+# Modeli oluştur
+C50_model <- C5.0(play ~ ., data = train_data)
+
+# Modelin özetini al
+summary(C50_model)
+
+# Modeli görselleştir
+plot(C50_model)
+
+# Tahmin yap
+tahmin_c50 <- predict(C50_model, test_data, type = "class")
+tahmin_c50
+```
+# Karar Ağacı Tüm veri için 
+```{r}
+C50 <-C5.0(play ~., data=WeatherPlay) 
+summary(C50)
+plot(C50)
+```
+# Model Özeti
+Model Çağrısı: C5.0.formula(formula = play ~ ., data = WeatherPlay) ifadesi ile play değişkeninin diğer değişkenlerle olan ilişkisi modellemiştir.
+Okunan Veriler: Toplam 14 gözlem ve 5 özellik (değişken) kullanılmıştır.
+#### Karar Ağacı
+Karar ağacının yapısı:
+
+- outlook = overcast: Bu durumda tahmin yes (oyun oynama) olarak belirlenmiştir ve bu sınıfta 4 gözlem bulunmaktadır.
+outlook = sunny:
+Eğer humidity = NemY ise tahmin no (oyun oynamama) olarak belirlenmiştir ve bu sınıfta 3 gözlem vardır.
+Eğer humidity = NemN ise tahmin yes olarak belirlenmiştir ve bu sınıfta 2 gözlem vardır.
+outlook = rainy:
+Eğer windy = false ise tahmin yes olarak belirlenmiştir ve bu sınıfta 3 gözlem bulunmaktadır.
+Eğer windy = true ise tahmin no olarak belirlenmiştir ve bu sınıfta 2 gözlem vardır.
+#### Eğitim Verileri Üzerinde Değerlendirme
+Karar Ağacı: Model, eğitim verileri üzerinde değerlendirildiğinde, toplamda 14 gözlemden 0 hata ile sonuçlanmıştır. Bu, %0 hata oranı demektir.
+Sınıflandırma Sonuçları:
+9 gözlem yes (oyun oynama) olarak sınıflandırılmıştır.
+5 gözlem no (oyun oynamama) olarak sınıflandırılmıştır.
+#### Özellik Kullanımı
+Özellik Kullanımı:
+outlook özelliği %100 oranında kullanılmıştır, bu da modelin karar vermede en etkili değişken olduğunu gösterir.
+humidity ve windy özellikleri ise sırasıyla %35.71 oranında kullanılmıştır.
+#### Süre
+Modelin eğitimi sadece 0.0 saniye sürmüştür, bu da işlemin hızlı bir şekilde tamamlandığını gösterir.
+#### Genel Değerlendirme
+C5.0 algoritması ile oluşturulan bu karar ağacı, küçük bir veri seti üzerinde yüksek doğruluk oranı ile sınıflandırma yapmaktadır. Özellikle outlook değişkeninin karar vermede önemli bir rol oynadığı görülmektedir.
+
 
