@@ -32,3 +32,6 @@ The gain values indicate the effectiveness of each attribute in classifying the 
 
 The highest gain value was obtained for HAVA (Outlook), meaning it provides the most information for classifying the target variable (GOLF). Therefore, the first branching in the decision tree will begin with the HAVA (Outlook) attribute at the root node.
 ![image](https://github.com/user-attachments/assets/7e96337c-c085-4c0b-994e-1e20b9b71110)
+
+![iris](https://github.com/user-attachments/assets/031b7b00-f841-4ef9-bc69-091078390409)
+![weatherplay](https://github.com/user-attachments/assets/91a6d908-259a-4a05-9320-42f4a218b3c8)
