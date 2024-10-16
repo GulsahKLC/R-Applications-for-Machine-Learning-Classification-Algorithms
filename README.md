@@ -1,8 +1,13 @@
 # WEATHER_PLAY
 ID3 Algorithm - Decision Tree Implementation
+C 4.5 (J48) Algorithm
+Twoing kriteri (twoing criteria)
 ## Overview
-This project is an implementation of the ID3 Algorithm (Iterative Dichotomiser 3), a classic decision tree algorithm used for classification tasks. The main goal of the project is to demonstrate how the ID3 algorithm constructs a decision tree based on a dataset with various attributes. 
+This project is an implementation of the ID3 Algorithm (Iterative Dichotomiser 3),C 4.5 (J48) Algorithm and Twoing kriteri (twoing criteria) a classic decision tree algorithm used for classification tasks. 
+The main goal of the project is to demonstrate how the ID3 algorithm constructs a decision tree based on a dataset with various attributes. 
 - The ID3 algorithm utilizes the information gain and entropy concepts to split data at each node, aiming to create a tree that best classifies the dataset.
+- C4.5 is an improved version of the ID3 algorithm that offers additional features such as the ability to handle continuous variables, manage missing values, and perform pruning. This algorithm uses the information gain ratio to optimally split the data at each node, ultimately creating a decision tree structure. C4.5 provides higher accuracy and overall performance in classification tasks.
+- The Twoing Criterion is a statistical method used to measure the effectiveness of a split. It evaluates the purity of the resulting subsets after a split on an attribute and focuses on maximizing class separation. This criterion optimizes the splits in decision trees, leading to more effective classification results.
 
 
 ## Features
