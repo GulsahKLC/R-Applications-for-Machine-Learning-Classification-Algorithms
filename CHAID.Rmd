@@ -1,0 +1,163 @@
+---
+title: "CHAID KI-SQUARE"
+author: "IVM-25-EKIM-2024"
+date: "2024-10-24"
+output: html_document
+---
+```{r}
+#install.packages("RWeka") 
+#install.packages("grid") 
+#install.packages("caret")
+#install.packages("rpart")
+# install.packages("partykit")
+# install.packages("CHAID", repos="http://R-Forge.R-project.org")
+library(rsample)
+library(dplyr)
+library(ggplot2)
+library(purrr)
+library(caret)
+library(CHAID)
+theme_set(theme_bw()) 
+```
+```{r}
+
+install.packages("CHAID", repos="http://R-Forge.R-project.org")
+library(partykit)
+library(party)
+library(grid)
+library(libcoin)
+library(mvtnorm)
+library(modeldata)
+library(CHAID)  #chaıd analizi için gerekli lib
+```
+
+```{r}
+# veri setimiz
+library(modeldata)
+data(attrition)
+str(attrition)
+head(attrition)
+tail(attrition)
+dim(attrition)
+```
+Bu veri kümesi, bir şirkette çalışan 1470 kişinin demografik, iş ve performans bilgilerini içermektedir ve toplamda 31 değişken barındırmaktadır. Çalışanların yaşları, cinsiyetleri, iş rolleri, departmanları, eğitim düzeyleri ve eğitim alanları gibi temel demografik bilgiler mevcuttur. Ayrıca, çalışanların günlük ücretleri, saatlik ücretleri ve aylık gelirleri gibi mali veriler de yer almaktadır. İş ile ilgili bilgiler arasında çalışanların şirkette geçirdikleri yıllar, toplam çalışma yılları, mevcut yöneticileriyle çalışma süreleri gibi değişkenler bulunmaktadır. Çalışanların iş tatmini, performans derecelendirmesi, fazla mesai yapıp yapmadıkları gibi iş memnuniyeti ve bağlılık göstergeleri de veriye dahil edilmiştir. Aşınma, işten ayrılma olasılığını gösteren bir değişken olarak iki seviyeli bir faktör şeklinde sunulmaktadır. Eğitim memnuniyeti, iş tatmini ve yaşam dengesi gibi bazı faktörler sıralı faktörler olarak düzenlenmiştir. Çalışanların iş seyahati durumu, evden uzaklıkları ve fazla mesai yapıp yapmadıkları gibi değişkenler iş ortamı ile ilgili ek bilgiler sunmaktadır. Bu veriler, çalışan bağlılığı, performans değerlendirme, iş memnuniyeti gibi birçok analitik modelde kullanılabilecek zengin bir veri kümesi oluşturmaktadır. Veriler iş performansını, memnuniyet ve bağlılık gibi özellikleri analiz etmek için faydalıdır.
+
+```{r}
+# attrition veri setindeki faktör türünde olan sütunların sayısını hesaplar.
+attrition %>%
+  select_if(is.factor) %>%
+  ncol
+
+# select_if fonksiyonu, sütunların belirli bir koşulu sağlayıp sağlamadığına göre seçim yapar. 
+```
+```{r}
+# attrition veri setindeki sayısal sütunların sayısını hesaplar.
+attrition %>%
+  select_if(is.numeric) %>%
+  ncol
+```
+```{r}
+#attrition veri setinde benzersiz kategori sayısı 5 veya daha az olan ve 
+#tamsayı türünde olan sütunları seçer ve seçilen sütunların ilk birkaç gözlemini ekrana yazdırır.
+
+attrition %>%
+  select_if(function(col)
+    length(unique(col)) <= 5 & is.integer(col)) %>%
+  head
+```
+```{r}
+
+# attrition veri setindeki benzersiz değer sayısı 10 veya daha az olan ve tamsayı türünde olan sütunları seçer 
+attrition %>%
+  select_if(function(col)
+    length(unique(col)) <= 10 & is.integer(col)) %>%
+  head
+```
+
+Kategorik Dönüşüm için Uygunluk: Benzersiz değer sayısı az olan (örneğin 10 veya daha az) ve tamsayı türünde olan sütunlar, kategorik verilere dönüştürülebilir. Bu tür dönüşümler, özellikle kategorik veri analizinde veya modellemede daha anlamlı olabilir. Az sayıda benzersiz değeri olan değişkenler, örneğin "Eğitim Seviyesi" veya "İş Tatmini" gibi, etiketleme veya sınıflandırma için uygun adaylardır.
+
+
+```{r}
+#attrition veri setinde sınırlı sayıda benzersiz değere sahip olan sayısal sütunları kategorik verilere dönüştürmek ve verinin yapısını incelemektir.
+#Bu tür bir dönüşüm, faktör değişkenlerinin analizinde veya modellemede daha anlamlı sonuçlar elde etmeye yardımcı olabilir.
+
+attrition %>%
+  mutate(
+    JobLevel = factor(JobLevel),
+    NumCompaniesWorked = factor(NumCompaniesWorked),
+    StockOptionLevel = factor(StockOptionLevel),
+    TrainingTimesLastYear = factor(TrainingTimesLastYear)
+  ) %>% 
+  str
+```
+```{r}
+# attrition veri setinde 10 veya daha az benzersiz değere sahip ve tamsayı türünde olan sütunları faktör (kategorik) türüne dönüştürmektir. 
+#Ardından, veri setinin özet istatistiklerini görüntüler
+
+
+attrition <- attrition %>% 
+  mutate_if(function(col) length(unique(col)) <= 10 & is.integer(col), as.factor)
+summary(attrition)
+```
+```{r}
+
+# attrition veri setinde sadece faktör (kategorik) türünde olan sütunları seçer.
+
+# newattrit: Seçilen faktör sütunları içeren yeni bir veri seti oluşturulur.
+
+# dim(newattrit): newattrit veri setinin boyutlarını (satır ve sütun sayısını) gösterir.
+# dim fonksiyonu iki değeri birlikte döndürür: satır sayısı ve sütun sayısı.
+
+newattrit <- attrition %>% 
+  select_if(is.factor)
+dim(newattrit)   # 1470   15
+str(newattrit)
+
+head(newattrit)
+```
+Veri setinizde sayısal (integer) olan ve az sayıda benzersiz değere sahip olan değişkenler (örneğin, NumCompaniesWorked, StockOptionLevel, TrainingTimesLastYear gibi) faktör türüne dönüştürülmüştür.
+
+Bu dönüşüm için belirli bir benzersiz değer sayısı (örneğin, 10 veya 5) kullanılarak, bu sayının altında olan değişkenler seçilmiştir. Bu, daha az karmaşıklık ve daha anlamlı kategoriler yaratır.
+Attrition: Çalışan Devir Hızı (İşten Ayrılma)
+BusinessTravel: İş Seyahati
+Department: Departman
+Education: Eğitim
+EducationField: Eğitim Alanı
+JobSatisfaction: İş Tatmini
+Gender: Cinsiyet
+JobInvolvement: İşe Katılım
+JobRole: İş Rolü
+JobSatisfaction: İş Tatmini
+MaritalStatus: Medeni Durum
+PerformanceRating: Performans Derecelendirmesi
+MaritalStatus: Medeni Durum
+OverTime: Fazla Mesai
+RelationshipSatisfaction: İlişki Memnuniyeti
+Bu değişkenler, çalışanın iş ortamındaki durumu ve deneyimlerini anlamak için kullanılan önemli faktörlerdir.
+
+
+
+# CHAID ANALİZİ
+```{r}
+
+chaidattrit1 <- chaid(Attrition ~ ., data = newattrit)
+
+# Attrition (işten ayrılma durumu) değişkenini bağımlı değişken olarak alarak, newattrit veri çerçevesindeki tüm diğer faktörleri bağımsız değişkenler olarak kullanarak bir CHAID modeli oluşturur. ~ . ifadesi, modelin tüm diğer değişkenleri kullanacağını belirtir.
+
+print(chaidattrit1)
+plot(chaidattrit1)
+```
+```{r}
+# digress for plotting
+plot(chaidattrit1, type = "simple")
+```
+
+```{r}
+plot(
+  chaidattrit1,
+  main = "Testing Graphical Options",
+  gp = gpar(fontsize = 8),
+  type = "simple"
+)
+```
+
