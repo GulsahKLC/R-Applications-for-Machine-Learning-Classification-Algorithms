@@ -161,3 +161,10 @@ plot(
 )
 ```
 
+
+Kök düğümde OverTime (Fazla Mesai) değişkeni ile başlıyor. Bu değişken, çalışanların işten ayrılma durumunu etkileyen ilk büyük ayrım noktası.
+
+Çalışanların fazla mesai durumlarının, işten ayrılma kararlarını etkileyen önemli bir faktör olduğu görülüyor.
+Düşük iş ve ilişki memnuniyeti olan çalışanların ayrılma olasılıkları yüksek.
+
+Bu CHAID modeli, çalışanların işten ayrılma durumunu etkileyen önemli faktörleri analiz etmenizi sağlar. Özellikle İş Memnuniyeti, İlişki Memnuniyeti ve Fazla Mesai gibi değişkenler üzerinde yoğunlaşarak, çalışan bağlılığını artırmaya yönelik stratejiler geliştirebilirsiniz.
