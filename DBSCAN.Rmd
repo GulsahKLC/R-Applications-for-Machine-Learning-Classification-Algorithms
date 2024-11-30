@@ -1,0 +1,95 @@
+---
+title: "DBSCAN"
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+date: "2024-11-30"
+---
+
+# Adım 1: Gerekli Kütüphaneleri Yükleme
+```{r}
+#install.packages("dbscan") # DBSCAN algoritması için
+#install.packages("ggplot2") # Görselleştirme için
+```
+
+```{r}
+library(dbscan)
+library(ggplot2)
+
+
+# Veri seti oluşturma (örnek olarak iki boyutlu veri)
+set.seed(11042)
+x <- cbind(
+  x = c(rnorm(50, mean = 2, sd = 0.5), rnorm(50, mean = 6, sd = 0.5)),
+  y = c(rnorm(50, mean = 2, sd = 0.5), rnorm(50, mean = 6, sd = 0.5))
+)
+x <- as.data.frame(x)
+colnames(x) <- c("X1", "X2")
+ggplot(x, aes(x = X1, y = X2)) +
+  geom_point() +
+  labs(title = "DBSCAN Oncesi Veri Seti", x = "X Ekseni", y = "Y Ekseni")
+```
+# Adım 3: k-dist Grafiği ile Epsilon (ε) Değerini Belirleme
+
+```{r}
+# k-en yakın komşular için mesafeleri hesapla
+k <- 4 # MinPts = 4 seçildiğinde k = MinPts - 1
+k_distances <- kNNdist(x, k = k)
+
+# k-dist grafiği çizme
+plot(sort(k_distances), type = "l", main = "k-Dist Grafiği", 
+     xlab = "Veri Noktaları", ylab = "k-Dist Mesafesi")
+abline(h = 0.5, col = "red", lty = 2) # Olası epsilon değeri
+
+```
+# Adım 4: DBSCAN Algoritmasını Uygulama
+
+```{r}
+library(dbscan)
+epsilon <- 0.5  # Örnek epsilon değeri
+MinPts <- 4     # Örnek MinPts değeri
+dbscan_result <- dbscan(x, eps = epsilon, minPts = MinPts)
+```
+# Adım 5: Sonuçları Görselleştirme
+
+```{r}
+library(ggplot2)
+
+data <- data.frame(x = x[, 1], y = x[, 2], cluster = factor(dbscan_result$cluster))
+
+ggplot(data, aes(x = x, y = y, color = cluster)) +
+  geom_point(size = 2) +
+  ggtitle("DBSCAN Kümeleme Sonuçları") +
+  xlab("X Ekseni") +
+  ylab("Y Ekseni") +
+  theme_minimal()
+
+```
+
+
+# Adım 6: Gürültü (Noise) Noktalarını Analiz Etme
+```{r}
+library(ggplot2)
+# Gürültü noktalarını ayıran veri çerçevesi
+noise_data <- subset(data, cluster == 0)  # Gürültü noktaları
+
+# DBSCAN sonuçlarını görselleştirme
+ggplot(data, aes(x = x, y = y, color = cluster)) +
+  geom_point(size = 2) +  # Tüm noktaları çiz
+  geom_point(
+    data = noise_data, 
+    aes(x = x, y = y), 
+    color = "black", shape = 4, size = 3  # Gürültü noktalarını işaretle
+  ) +
+  labs(
+    title = "DBSCAN Kümeleme Sonuçları (Gürültü Noktaları)", 
+    x = "X Ekseni", 
+    y = "Y Ekseni", 
+    color = "Küme"
+  ) +
+  theme_minimal()
+
+
+```
+
